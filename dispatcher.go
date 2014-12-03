@@ -62,6 +62,30 @@ func (req *Request) GetArg(name string) (interface{}, error) {
 	)
 }
 
+func (req *Request) GetString(name string) (string, error) {
+	t, err := req.GetArg(name)
+	if err != nil {
+		return "", err
+	}
+	retVal, ok := t.(string)
+	if !ok {
+		return "", fmt.Errorf("Arg %s is not castable to string.", name)
+	}
+	return retVal, nil
+}
+
+func (req *Request) GetInt(name string) (int, error) {
+	t, err := req.GetArg(name)
+	if err != nil {
+		return 0, err
+	}
+	retVal, ok := t.(int)
+	if !ok {
+		return 0, fmt.Errorf("Arg %s is not castable to string.", name)
+	}
+	return retVal, nil
+}
+
 func (res *Response) SetArg(name string, value interface{}) error {
 	for _, a := range res.args {
 		if name == a.name {
@@ -130,26 +154,26 @@ func (r *Router) Dispatch(msg []byte, c net.Conn) {
 		status = ctrl.f(req, res)
 	}
 
-	msg = make([]byte, 1, 100)
+	msg = make([]byte, 2, 100)
 	msg[0] = byte(status)
+	msg[1] = byte(len(resArgs))
 	var argLen uint8 = 0
-	var mi uint8 = 2
 	for _, a := range res.args {
 		if a.value != nil {
 			switch a.type_ {
 			case reflect.String:
 				argLen = uint8(len(a.value.(string)))
 				msg = append(msg, argLen)
-				mi++
 				msg = append(msg, a.value.(string)...)
 			case reflect.Int32:
 				argLen = 4
+				msg = append(msg, argLen)
+				bs := bsInt32(a.value.(int32))
+				msg = append(msg, bs...)
 			}
 
-			mi += argLen
 		} else {
 			msg = append(msg, 0)
-			mi++
 		}
 	}
 
